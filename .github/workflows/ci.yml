@@ -1,0 +1,33 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    # curl and Apache httpd are the oracles of most of the tests; the runner has curl, Apache is installed here
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install Apache httpd (a real server to compare static file behaviour with)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq apache2 > /dev/null
+          sudo systemctl stop apache2 || true
+          sudo systemctl disable apache2 || true
+          apache2 -v
+          curl --version | head -1
+      - name: Install package and dev dependencies
+        run: pip install -e ".[dev]"
+      - name: Run test suite
+        run: pytest -v
