@@ -62,13 +62,24 @@ class Apache:
         self.proc = subprocess.Popen([self.binary, "-f", self.conf, "-D", "FOREGROUND"], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
         for _ in range(100):
             if self.proc.poll() is not None:
-                raise RuntimeError("httpd exited: " + self.proc.stderr.read().decode(errors="replace"))
+                raise RuntimeError(self._why_it_exited())
             try:
                 socket.create_connection(("127.0.0.1", self.port), timeout=0.2).close()
                 return self
             except OSError:
                 time.sleep(0.05)
         raise RuntimeError("httpd did not start")
+
+    def _why_it_exited(self):
+        """Everything Apache said before dying: its stderr, its error log and what ``-t`` makes of the configuration."""
+        said = self.proc.stderr.read().decode(errors="replace")
+        try:
+            with open(os.path.join(self.dir, "error.log")) as f:
+                logged = f.read()
+        except OSError:
+            logged = "(no error log)"
+        check = subprocess.run([self.binary, "-f", self.conf, "-t"], capture_output=True, text=True)
+        return "httpd exited with %s\nstderr: %s\nerror.log: %s\n-t: %s%s\nconfig:\n%s" % (self.proc.returncode, said, logged, check.stdout, check.stderr, open(self.conf).read())
 
     def stop(self):
         if self.proc:
