@@ -51,6 +51,9 @@ class Apache:
                   '<Directory "%s">' % self.docroot, "  Options %s" % ("Indexes" if indexes else "None"), "  AllowOverride None", "  Require all granted", "</Directory>",
                   "DirectoryIndex index.html", 'ErrorLog "%s/error.log"' % self.dir, "LogLevel warn", "EnableSendfile Off", "KeepAlive On", "MaxKeepAliveRequests 100",
                   "ServerTokens Prod", "TraceEnable off", 'DefaultType none' if False else ""]
+        types_config = os.path.join(self.dir, "mime.types")                  # mod_mime insists on a file here (Debian's default path does not exist under our ServerRoot)
+        open(types_config, "w").close()
+        lines.append('TypesConfig "%s"' % types_config)
         for ext, mime in (types or {}).items():
             lines.append("AddType %s %s" % (mime, ext))
         self.conf = os.path.join(self.dir, "httpd.conf")
